@@ -1,6 +1,10 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 import uvicorn
+
+from database import init_db
+from routers.files import router as files_router
 
 app = FastAPI(title="Lilac API")
 
@@ -12,18 +16,21 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Ensure uploads directory exists
+os.makedirs("uploads", exist_ok=True)
+
+
+@app.on_event("startup")
+def on_startup() -> None:
+    init_db()
+
 
 @app.get("/health")
-def health():
+def health() -> dict:
     return {"status": "ok"}
 
 
-
-# --- Files ---
-# POST   /files/upload    - upload epub/pdf
-# GET    /files           - list uploaded files
-# GET    /files/{id}      - get file metadata
-# DELETE /files/{id}      - delete a file
+app.include_router(files_router)
 
 # --- Reader ---
 # GET    /files/{id}/pages/{page}  - get rendered page content
@@ -37,6 +44,6 @@ def health():
 if __name__ == "__main__":
     try:
         uvicorn.run(app, host="0.0.0.0", port=8000)
-    except:
+    except Exception:
         print("An error has occurred!")
         exit(1)

@@ -1,3 +1,10 @@
 fastapi
 uvicorn[standard]
 python-multipart
+sqlalchemy
+ebooklib
+beautifulsoup4
+lxml
+pymupdf
+chromadb
+ollama
