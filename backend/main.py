@@ -1,10 +1,12 @@
 import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 from database import init_db
 from routers.files import router as files_router
+from routers.books import router as books_router
 
 app = FastAPI(title="Lilac API")
 
@@ -19,7 +21,6 @@ app.add_middleware(
 # Ensure uploads directory exists
 os.makedirs("uploads", exist_ok=True)
 
-
 @app.on_event("startup")
 def on_startup() -> None:
     init_db()
@@ -31,6 +32,8 @@ def health() -> dict:
 
 
 app.include_router(files_router)
+app.include_router(books_router)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 # --- Reader ---
 # GET    /files/{id}/pages/{page}  - get rendered page content

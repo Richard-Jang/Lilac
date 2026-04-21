@@ -1,24 +1,11 @@
+import { useEffect, useState } from "react";
 import { motion } from "motion/react";
 import { LuX, LuHeart, LuBookmark, LuSettings, LuChevronRight } from "react-icons/lu";
+import { api } from "../api/client";
 
 interface ProfileModalProps {
   onClose: () => void;
 }
-
-const QUOTES = [
-  {
-    text: '"So we beat on, boats against the current, borne back ceaselessly into the past."',
-    source: "THE GREAT GATSBY",
-  },
-  {
-    text: '"It was a bright cold day in April, and the clocks were striking thirteen."',
-    source: "1984",
-  },
-  {
-    text: '"I am not afraid of storms, for I am learning how to sail my ship."',
-    source: "LITTLE WOMEN",
-  },
-];
 
 const LINKS = [
   { icon: LuBookmark, label: "Reading Statistics" },
@@ -26,6 +13,12 @@ const LINKS = [
 ];
 
 export default function ProfileModal({ onClose }: ProfileModalProps) {
+  const [bookCount, setBookCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    api.books.list().then((books) => setBookCount(books.length));
+  }, []);
+
   return (
     <motion.div
       className="fixed inset-0 bg-black/30 flex items-stretch justify-end z-[100]"
@@ -67,7 +60,7 @@ export default function ProfileModal({ onClose }: ProfileModalProps) {
             animate={{ scale: 1, opacity: 1 }}
             transition={{ type: "spring", stiffness: 300, damping: 20, delay: 0.15 }}
           >
-            JD
+            ?
           </motion.div>
 
           <motion.h2
@@ -76,41 +69,22 @@ export default function ProfileModal({ onClose }: ProfileModalProps) {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.2, duration: 0.2 }}
           >
-            Jane Doe
+            My Library
           </motion.h2>
-
-          <motion.div
-            className="flex items-center gap-2 mb-8"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.25, duration: 0.2 }}
-          >
-            <span className="bg-violet-100 text-violet-600 text-xs font-semibold px-2.5 py-0.5 rounded-full">
-              Level 12
-            </span>
-            <span className="text-gray-400">·</span>
-            <span className="text-gray-400 text-[13px]">Favorite Genre: Classic Literature</span>
-          </motion.div>
 
           {/* Stats */}
           <motion.div
-            className="grid grid-cols-3 w-full border border-gray-200 rounded-xl overflow-hidden divide-x divide-gray-200 mb-10"
+            className="grid grid-cols-1 w-full border border-gray-200 rounded-xl overflow-hidden mb-10"
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.3, duration: 0.2 }}
           >
-            {[
-              { value: "14", label: "BOOKS" },
-              { value: "2.4k", label: "PAGES" },
-              { value: "642k", label: "WORDS" },
-            ].map(({ value, label }) => (
-              <div key={label} className="flex flex-col items-center py-5 px-4 bg-white gap-1">
-                <span className="text-2xl font-bold text-gray-900">{value}</span>
-                <span className="text-[11px] font-semibold tracking-widest text-gray-400">
-                  {label}
-                </span>
-              </div>
-            ))}
+            <div className="flex flex-col items-center py-5 px-4 bg-white gap-1">
+              <span className="text-2xl font-bold text-gray-900">
+                {bookCount ?? "—"}
+              </span>
+              <span className="text-[11px] font-semibold tracking-widest text-gray-400">BOOKS</span>
+            </div>
           </motion.div>
 
           {/* Quotes */}
@@ -125,32 +99,11 @@ export default function ProfileModal({ onClose }: ProfileModalProps) {
                 <LuHeart size={16} className="text-red-500 fill-red-500" />
                 <span>Favorited Quotes</span>
               </div>
-              <span className="text-[11px] font-semibold tracking-widest text-gray-400">
-                3 TOTAL
-              </span>
             </div>
             <div className="flex flex-col border-t border-gray-200">
-              {QUOTES.map((q, i) => (
-                <motion.div
-                  key={i}
-                  className="flex gap-3 py-5 border-b border-gray-200"
-                  initial={{ opacity: 0, x: -10 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.4 + i * 0.07, duration: 0.2 }}
-                >
-                  <div className="flex-shrink-0 pt-0.5">
-                    <span className="flex items-center justify-center w-6 h-6 bg-violet-100 text-violet-600 rounded text-base font-bold leading-none">
-                      "
-                    </span>
-                  </div>
-                  <div className="flex flex-col gap-2 flex-1">
-                    <p className="text-gray-700 italic leading-relaxed m-0">{q.text}</p>
-                    <span className="text-[12px] font-bold tracking-wide text-violet-600 text-right">
-                      — {q.source}
-                    </span>
-                  </div>
-                </motion.div>
-              ))}
+              <div className="flex items-center justify-center py-10 text-sm text-gray-400">
+                No quotes saved yet.
+              </div>
             </div>
           </motion.div>
 

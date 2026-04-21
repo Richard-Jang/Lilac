@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Any
+from typing import Any, Optional
 from fastapi.responses import JSONResponse
 
 
@@ -39,3 +39,46 @@ class FileRecord(BaseModel):
     author: str
     chunk_count: int
     uploaded_at: str
+
+
+# --- Books ---
+
+class BookRecord(BaseModel):
+    id: str
+    filename: str
+    file_type: str
+    size_bytes: int
+    title: str
+    author: str
+    cover_path: Optional[str]
+    page_count: int
+    char_count: int
+    current_page: int
+    completed: bool
+    uploaded_at: str
+
+
+# --- Reader annotations ---
+
+class HighlightRequest(BaseModel):
+    page_number: int
+    text: str
+
+
+class QuoteRequest(BaseModel):
+    page_number: int
+    text: str
+
+
+class NoteRequest(BaseModel):
+    page_number: int
+    selected_text: str
+    note: str
+
+
+class BookmarkRequest(BaseModel):
+    page_number: int
+
+
+class SetPageRequest(BaseModel):
+    page: int

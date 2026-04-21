@@ -47,7 +47,7 @@ async def upload_file(file: UploadFile = File(...)) -> JSONResponse:
     # Parse text and extract metadata
     try:
         if ext == "epub":
-            title, author, chunks = epub_parser.parse(save_path)
+            title, author, _, chunks = epub_parser.parse(save_path)
         else:
             title, author, chunks = pdf_parser.parse(save_path)
     except Exception as e:
