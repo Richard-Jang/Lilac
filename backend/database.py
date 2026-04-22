@@ -10,6 +10,15 @@ class Base(DeclarativeBase):
     pass
 
 
+class UserRow(Base):
+    __tablename__ = "users"
+
+    id = Column(String, primary_key=True)
+    username = Column(String, unique=True, nullable=False)
+    password = Column(String, nullable=False)
+    created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
+
+
 class FileRow(Base):
     __tablename__ = "files"
 
@@ -56,6 +65,7 @@ class HighlightRow(Base):
     __tablename__ = "highlights"
 
     id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False, default="")
     book_id = Column(String, nullable=False)
     page_number = Column(Integer, nullable=False)
     text = Column(Text, nullable=False)
@@ -66,9 +76,11 @@ class QuoteRow(Base):
     __tablename__ = "quotes"
 
     id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False, default="")
     book_id = Column(String, nullable=False)
     page_number = Column(Integer, nullable=False)
     text = Column(Text, nullable=False)
+    favorited = Column(Boolean, nullable=False, default=False)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))
 
 
@@ -76,6 +88,7 @@ class NoteRow(Base):
     __tablename__ = "notes"
 
     id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False, default="")
     book_id = Column(String, nullable=False)
     page_number = Column(Integer, nullable=False)
     selected_text = Column(Text, nullable=False)
@@ -87,6 +100,7 @@ class BookmarkRow(Base):
     __tablename__ = "bookmarks"
 
     id = Column(String, primary_key=True)
+    user_id = Column(String, nullable=False, default="")
     book_id = Column(String, nullable=False)
     page_number = Column(Integer, nullable=False)
     created_at = Column(DateTime, nullable=False, default=lambda: datetime.now(timezone.utc))

@@ -2,27 +2,26 @@ import os
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, BackgroundTasks, UploadFile, File
+from fastapi import APIRouter, BackgroundTasks, Depends, UploadFile, File
 from fastapi.responses import JSONResponse
 from database import get_session, BookRow, PageRow, HighlightRow, QuoteRow, NoteRow, BookmarkRow
 from models import (
     ok, err, BookRecord,
-    HighlightRequest, QuoteRequest, NoteRequest, BookmarkRequest, SetPageRequest,
+    HighlightRequest, QuoteRequest, NoteRequest, BookmarkRequest, SetPageRequest, ChatRequest,
 )
 from parsers import epub as epub_parser, pdf as pdf_parser
+from routers.deps import get_current_user
 import vector_store
 
 router = APIRouter(prefix="/books", tags=["books"])
 
 UPLOAD_DIR = os.path.join(os.path.dirname(__file__), "..", "uploads")
 ALLOWED_EXTENSIONS = {"epub", "pdf"}
-PAGE_WINDOW = 5
 _EMBED_CHUNK_SIZE = 1000
 _EMBED_CHUNK_OVERLAP = 100
 
 
 def _split_for_embed(pages: list[dict]) -> list[dict]:
-    """Chunk page texts to fit the embedding model's context window."""
     chunks = []
     idx = 0
     for page in pages:
@@ -216,13 +215,50 @@ def set_page(book_id: str, body: SetPageRequest) -> dict:
 
 # --- Annotations ---
 
+@router.get("/{book_id}/annotations")
+def get_annotations(book_id: str, user_id: str = Depends(get_current_user)) -> dict:
+    with get_session() as session:
+        if session.get(BookRow, book_id) is None:
+            return err("Book not found", 404)
+        highlights = (
+            session.query(HighlightRow)
+            .filter(HighlightRow.book_id == book_id, HighlightRow.user_id == user_id)
+            .all()
+        )
+        notes = (
+            session.query(NoteRow)
+            .filter(NoteRow.book_id == book_id, NoteRow.user_id == user_id)
+            .all()
+        )
+        quotes = (
+            session.query(QuoteRow)
+            .filter(QuoteRow.book_id == book_id, QuoteRow.user_id == user_id)
+            .all()
+        )
+        return ok({
+            "highlights": [
+                {"id": h.id, "text": h.text, "page_number": h.page_number, "created_at": h.created_at.isoformat()}
+                for h in highlights
+            ],
+            "notes": [
+                {"id": n.id, "selected_text": n.selected_text, "note": n.note, "page_number": n.page_number, "created_at": n.created_at.isoformat()}
+                for n in notes
+            ],
+            "quotes": [
+                {"id": q.id, "text": q.text, "page_number": q.page_number, "favorited": q.favorited, "created_at": q.created_at.isoformat()}
+                for q in quotes
+            ],
+        })
+
+
 @router.post("/{book_id}/highlight")
-def add_highlight(book_id: str, body: HighlightRequest) -> JSONResponse:
+def add_highlight(book_id: str, body: HighlightRequest, user_id: str = Depends(get_current_user)) -> JSONResponse:
     with get_session() as session:
         if session.get(BookRow, book_id) is None:
             return err("Book not found", 404)
         row = HighlightRow(
             id=str(uuid.uuid4()),
+            user_id=user_id,
             book_id=book_id,
             page_number=body.page_number,
             text=body.text,
@@ -233,13 +269,25 @@ def add_highlight(book_id: str, body: HighlightRequest) -> JSONResponse:
         return JSONResponse(content=ok({"id": row.id}), status_code=201)
 
 
+@router.delete("/{book_id}/highlight/{highlight_id}")
+def delete_highlight(book_id: str, highlight_id: str, user_id: str = Depends(get_current_user)) -> dict:
+    with get_session() as session:
+        row = session.get(HighlightRow, highlight_id)
+        if row is None or row.book_id != book_id or row.user_id != user_id:
+            return err("Not found", 404)
+        session.delete(row)
+        session.commit()
+        return ok({"deleted": True})
+
+
 @router.post("/{book_id}/quote")
-def add_quote(book_id: str, body: QuoteRequest) -> JSONResponse:
+def add_quote(book_id: str, body: QuoteRequest, user_id: str = Depends(get_current_user)) -> JSONResponse:
     with get_session() as session:
         if session.get(BookRow, book_id) is None:
             return err("Book not found", 404)
         row = QuoteRow(
             id=str(uuid.uuid4()),
+            user_id=user_id,
             book_id=book_id,
             page_number=body.page_number,
             text=body.text,
@@ -250,13 +298,36 @@ def add_quote(book_id: str, body: QuoteRequest) -> JSONResponse:
         return JSONResponse(content=ok({"id": row.id}), status_code=201)
 
 
+@router.patch("/{book_id}/quote/{quote_id}/favorite")
+def toggle_quote_favorite(book_id: str, quote_id: str, user_id: str = Depends(get_current_user)) -> dict:
+    with get_session() as session:
+        row = session.get(QuoteRow, quote_id)
+        if row is None or row.book_id != book_id or row.user_id != user_id:
+            return err("Not found", 404)
+        row.favorited = not row.favorited
+        session.commit()
+        return ok({"favorited": row.favorited})
+
+
+@router.delete("/{book_id}/quote/{quote_id}")
+def delete_quote(book_id: str, quote_id: str, user_id: str = Depends(get_current_user)) -> dict:
+    with get_session() as session:
+        row = session.get(QuoteRow, quote_id)
+        if row is None or row.book_id != book_id or row.user_id != user_id:
+            return err("Not found", 404)
+        session.delete(row)
+        session.commit()
+        return ok({"deleted": True})
+
+
 @router.post("/{book_id}/note")
-def add_note(book_id: str, body: NoteRequest) -> JSONResponse:
+def add_note(book_id: str, body: NoteRequest, user_id: str = Depends(get_current_user)) -> JSONResponse:
     with get_session() as session:
         if session.get(BookRow, book_id) is None:
             return err("Book not found", 404)
         row = NoteRow(
             id=str(uuid.uuid4()),
+            user_id=user_id,
             book_id=book_id,
             page_number=body.page_number,
             selected_text=body.selected_text,
@@ -268,13 +339,25 @@ def add_note(book_id: str, body: NoteRequest) -> JSONResponse:
         return JSONResponse(content=ok({"id": row.id}), status_code=201)
 
 
+@router.delete("/{book_id}/note/{note_id}")
+def delete_note(book_id: str, note_id: str, user_id: str = Depends(get_current_user)) -> dict:
+    with get_session() as session:
+        row = session.get(NoteRow, note_id)
+        if row is None or row.book_id != book_id or row.user_id != user_id:
+            return err("Not found", 404)
+        session.delete(row)
+        session.commit()
+        return ok({"deleted": True})
+
+
 @router.post("/{book_id}/bookmark")
-def add_bookmark(book_id: str, body: BookmarkRequest) -> JSONResponse:
+def add_bookmark(book_id: str, body: BookmarkRequest, user_id: str = Depends(get_current_user)) -> JSONResponse:
     with get_session() as session:
         if session.get(BookRow, book_id) is None:
             return err("Book not found", 404)
         row = BookmarkRow(
             id=str(uuid.uuid4()),
+            user_id=user_id,
             book_id=book_id,
             page_number=body.page_number,
             created_at=datetime.now(timezone.utc),
@@ -282,3 +365,47 @@ def add_bookmark(book_id: str, body: BookmarkRequest) -> JSONResponse:
         session.add(row)
         session.commit()
         return JSONResponse(content=ok({"id": row.id}), status_code=201)
+
+
+# --- AI Chat ---
+
+@router.post("/{book_id}/chat")
+def chat(book_id: str, body: ChatRequest, user_id: str = Depends(get_current_user)) -> dict:
+    with get_session() as session:
+        book = session.get(BookRow, book_id)
+        if book is None:
+            return err("Book not found", 404)
+        title = book.title
+        author = book.author
+        current_page = book.current_page
+        page_count = book.page_count
+
+    results = vector_store.query_up_to_page(book_id, body.message, current_page, n=20)
+    results.sort(key=lambda x: x["metadata"].get("page_number", 0))
+    context = "\n\n---\n\n".join(r["text"] for r in results) if results else "No indexed content yet."
+
+    system = (
+        f'You are a reading companion for "{title}" by {author}. '
+        f"The reader is on page {current_page} of {page_count}. "
+        "Only discuss events and content the reader has already encountered — never reveal what happens later. "
+        "Ground your answers in the context below. If unsure, say so.\n\n"
+        f"CONTEXT:\n{context}"
+    )
+
+    try:
+        import ollama as _ollama
+        response = _ollama.chat(
+            model=os.getenv("CHAT_MODEL", "llama3"),
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": body.message},
+            ],
+        )
+        try:
+            reply = response.message.content
+        except AttributeError:
+            reply = response["message"]["content"]
+    except Exception as e:
+        return err(f"LLM unavailable: {e}", 503)
+
+    return ok({"reply": reply})

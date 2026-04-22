@@ -14,7 +14,7 @@ def _collection_name(file_id: str) -> str:
 
 
 def ingest(file_id: str, chunks: list[dict]) -> None:
-    """Store text chunks for a file. Each chunk: {text, chunk_index, ...metadata}"""
+    """Store text chunks for a file. Each chunk: {text, chunk_index, page_number, ...metadata}"""
     if not chunks:
         return
 
@@ -33,7 +33,7 @@ def ingest(file_id: str, chunks: list[dict]) -> None:
 
 
 def query(file_id: str, text: str, n: int = 5) -> list[dict]:
-    """Semantic search within a file's collection. Returns list of result dicts."""
+    """Semantic search within a file's collection."""
     try:
         collection = _client.get_collection(
             name=_collection_name(file_id),
@@ -42,7 +42,11 @@ def query(file_id: str, text: str, n: int = 5) -> list[dict]:
     except Exception:
         return []
 
-    results = collection.query(query_texts=[text], n_results=n)
+    count = collection.count()
+    if count == 0:
+        return []
+
+    results = collection.query(query_texts=[text], n_results=min(n, count))
     output = []
     for i, doc in enumerate(results["documents"][0]):
         output.append({
@@ -51,6 +55,46 @@ def query(file_id: str, text: str, n: int = 5) -> list[dict]:
             "distance": results["distances"][0][i],
         })
     return output
+
+
+def query_up_to_page(file_id: str, text: str, max_page: int, n: int = 5) -> list[dict]:
+    """Semantic search restricted to chunks from pages <= max_page (spoiler-free)."""
+    try:
+        collection = _client.get_collection(
+            name=_collection_name(file_id),
+            embedding_function=_embed_fn,
+        )
+    except Exception:
+        return []
+
+    count = collection.count()
+    if count == 0:
+        return []
+
+    try:
+        results = collection.query(
+            query_texts=[text],
+            n_results=min(n, count),
+            where={"page_number": {"$lte": max_page}},
+        )
+    except Exception:
+        # Fallback without page filter if filtered set is empty
+        try:
+            results = collection.query(query_texts=[text], n_results=min(n, count))
+        except Exception:
+            return []
+
+    if not results["documents"] or not results["documents"][0]:
+        return []
+
+    return [
+        {
+            "text": doc,
+            "metadata": results["metadatas"][0][i],
+            "distance": results["distances"][0][i],
+        }
+        for i, doc in enumerate(results["documents"][0])
+    ]
 
 
 def delete_collection(file_id: str) -> None:

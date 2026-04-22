@@ -223,7 +223,22 @@ export default function LibraryPage() {
   const contentKey = `${tab}-${view}-${search}`;
 
   return (
-    <div className="flex flex-col h-full overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden relative">
+      {/* Upload progress bar */}
+      <AnimatePresence>
+        {uploading && (
+          <motion.div
+            className="absolute top-0 left-0 right-0 h-0.5 bg-violet-100 overflow-hidden z-50"
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          >
+            <motion.div
+              className="h-full w-1/3 bg-violet-600 rounded-full"
+              animate={{ x: ["−100%", "400%"] }}
+              transition={{ repeat: Infinity, duration: 1.1, ease: "easeInOut" }}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
       <input
         ref={fileInputRef}
         type="file"

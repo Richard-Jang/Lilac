@@ -1,7 +1,10 @@
+import warnings
 import ebooklib
 from ebooklib import epub
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup, XMLParsedAsHTMLWarning
 from typing import Any
+
+warnings.filterwarnings("ignore", category=XMLParsedAsHTMLWarning)
 
 PAGE_SIZE = 1800
 
@@ -68,7 +71,7 @@ def _split_pages(text: str) -> list[str]:
             break
         while end < len(text) and text[end] not in (".", "!", "\n", "\t"):
             end += 1
-        if text[end] in (".", "!"):
+        if end < len(text) and text[end] in (".", "!"):
             end += 1
         pages.append(text[start:end].strip())
         start = end + 1

@@ -23,3 +23,47 @@ export interface BookResponse {
   book: Book;
   pages: Page[];
 }
+
+export interface AuthResponse {
+  token: string;
+  user_id: string;
+  username: string;
+}
+
+export interface Highlight {
+  id: string;
+  text: string;
+  page_number: number;
+  created_at: string;
+}
+
+export interface Note {
+  id: string;
+  selected_text: string;
+  note: string;
+  page_number: number;
+  created_at: string;
+}
+
+export interface Quote {
+  id: string;
+  text: string;
+  page_number: number;
+  favorited: boolean;
+  created_at: string;
+}
+
+export interface BookAnnotations {
+  highlights: Highlight[];
+  notes: Note[];
+  quotes: Quote[];
+}
+
+export interface AllAnnotationsEntry {
+  book_id: string;
+  book_title: string;
+  book_author: string;
+  highlights: Highlight[];
+  notes: Note[];
+  quotes: Quote[];
+}

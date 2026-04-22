@@ -19,12 +19,12 @@ def err(msg: str, code: int = 400) -> JSONResponse:
 # --- Auth ---
 
 class LoginRequest(BaseModel):
-    email: str
+    username: str
     password: str
 
 
 class RegisterRequest(BaseModel):
-    email: str
+    username: str
     password: str
 
 
@@ -82,3 +82,9 @@ class BookmarkRequest(BaseModel):
 
 class SetPageRequest(BaseModel):
     page: int
+
+
+# --- AI chat ---
+
+class ChatRequest(BaseModel):
+    message: str
